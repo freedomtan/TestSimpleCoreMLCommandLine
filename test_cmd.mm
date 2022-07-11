@@ -118,6 +118,10 @@ int main(int argc, char *argv[]) {
           [[((MLFeatureDescription *)inputDic[key]) multiArrayConstraint] shapeConstraint];
     }
   }
+  std::vector<int> shape;
+  for (int i = 0; i < [inputShape count]; i++) {
+    shape.push_back([inputShape[i] intValue]);
+  }
 
   const char *INPUT_FILE = "grace_hopper.raw";
   int fd = open(INPUT_FILE, O_RDONLY);
@@ -133,9 +137,7 @@ int main(int argc, char *argv[]) {
   NSLog(@"input Name = %@", inputName);
 
   TensorData inputTensorData = {
-      input_data_float, [inputName cStringUsingEncoding : [NSString defaultCStringEncoding]], {
-        1, 224, 224, 3
-      }};
+      input_data_float, [inputName cStringUsingEncoding:[NSString defaultCStringEncoding]], shape};
   std::vector<TensorData> inputVector;
   inputVector.push_back(inputTensorData);
 
