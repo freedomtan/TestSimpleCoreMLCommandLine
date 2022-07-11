@@ -2,7 +2,6 @@
 #include <vector>
 
 #include <fcntl.h>
-
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
@@ -123,19 +122,24 @@ int main(int argc, char *argv[]) {
     shape.push_back([inputShape[i] intValue]);
   }
 
+  // read raw input file into a char array;
   const char *INPUT_FILE = "grace_hopper.raw";
   int fd = open(INPUT_FILE, O_RDONLY);
   int input_size = 224 * 224 * 3;
   unsigned char *input_data_uint8 = (unsigned char *)malloc(input_size);
   ssize_t r_size = read(fd, input_data_uint8, input_size);
   NSLog(@"size read = %zd", r_size);
+
+  // convert uint8 values to float32 values, because MLModel takes float32
   float *input_data_float = (float *)malloc(input_size * sizeof(float));
   for (int i = 0; i < input_size; i++) {
+    // normoalize [0, 255] -> [-1.0, 1.0]
     input_data_float[i] = (float)((input_data_uint8[i] * 1.0 - 128) / 255.0);
   }
   NSLog(@"%f:%f:%f\n", input_data_float[64], input_data_float[65], input_data_float[66]);
   NSLog(@"input Name = %@", inputName);
 
+  // convert float32 array to an input feature
   TensorData inputTensorData = {
       input_data_float, [inputName cStringUsingEncoding:[NSString defaultCStringEncoding]], shape};
   std::vector<TensorData> inputVector;
@@ -143,6 +147,8 @@ int main(int argc, char *argv[]) {
 
   MultiArrayFeatureProvider *f = [[MultiArrayFeatureProvider alloc]
       initWithInputs:(const std::vector<TensorData> *)&inputVector];
+
+  // inference with the input feature
   MultiArrayFeatureProvider *o = (MultiArrayFeatureProvider *)[mlmodel predictionFromFeatures:f
                                                                                         error:&e];
   if (nil == e) {
@@ -152,12 +158,14 @@ int main(int argc, char *argv[]) {
   NSLog(@"output Softmax: %@", [o featureValueForName:@"Softmax"]);
   MLMultiArray *outputArray = [[o featureValueForName:@"Softmax"] multiArrayValue];
 
+  // get float array from output feature
   __block float *foo;
   [outputArray getBytesWithHandler:(^(const void *bytes, NSInteger size) {
                  NSLog(@"buffer size = %ld", size);
                  foo = (float *)bytes;
                })];
 
+  // check if the output meet our expectation
   float max = 0;
   int index = 0;
   for (int i = 0; i < 1001; i++) {
